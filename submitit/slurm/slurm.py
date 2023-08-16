@@ -225,10 +225,6 @@ class SlurmExecutor(core.PicklingExecutor):
     max_num_timeout: int
         Maximum number of time the job can be requeued after timeout (if
         the instance is derived from helpers.Checkpointable)
-    python: str
-        Command to launch python. This allow to use singularity for example.
-        Caller is responsible to provide a valid shell command here.
-        By default reuse the current python executable
 
     Note
     ----
@@ -243,9 +239,8 @@ class SlurmExecutor(core.PicklingExecutor):
 
     job_class = SlurmJob
 
-    def __init__(self, folder: Union[Path, str], max_num_timeout: int = 3, python: str = None) -> None:
+    def __init__(self, folder: Union[Path, str], max_num_timeout: int = 3) -> None:
         super().__init__(folder, max_num_timeout)
-        self.python = python
         if not self.affinity() > 0:
             raise RuntimeError('Could not detect "srun", are you indeed on a slurm cluster?')
 
@@ -345,8 +340,9 @@ class SlurmExecutor(core.PicklingExecutor):
 
     @property
     def _submitit_command_str(self) -> str:
-        python = self.python or shlex.quote(sys.executable)
-        return " ".join([python, "-u -m submitit.core._submit", shlex.quote(str(self.folder))])
+        return " ".join(
+            [shlex.quote(sys.executable), "-u -m submitit.core._submit", shlex.quote(str(self.folder))]
+        )
 
     def _make_submission_file_text(self, command: str, uid: str) -> str:
         return _make_sbatch_string(command=command, folder=self.folder, **self.parameters)
@@ -411,10 +407,6 @@ def _make_sbatch_string(
     exclude: tp.Optional[str] = None,
     account: tp.Optional[str] = None,
     gres: tp.Optional[str] = None,
-    mail_type: tp.Optional[str] = None,
-    mail_user: tp.Optional[str] = None,
-    nodelist: tp.Optional[str] = None,
-    dependency: tp.Optional[str] = None,
     exclusive: tp.Optional[tp.Union[bool, str]] = None,
     array_parallelism: int = 256,
     wckey: str = "submitit",
